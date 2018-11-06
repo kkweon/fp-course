@@ -1,6 +1,5 @@
 {-# LANGUAGE ImplicitPrelude #-}
 
-import Data.String (fromString)
 import Test.Tasty
 import Course.ApplicativeTest (test_Applicative)
 import Course.ComonadTest (test_Comonad)
@@ -36,4 +35,3 @@ tests =
   , test_JsonParser
   , test_Cheque
   ]
-
