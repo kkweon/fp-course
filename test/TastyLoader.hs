@@ -1,5 +1,6 @@
 {-# LANGUAGE ImplicitPrelude #-}
 
+import Data.String (fromString)
 import Test.Tasty
 import Course.ApplicativeTest (test_Applicative)
 import Course.ComonadTest (test_Comonad)
@@ -11,9 +12,11 @@ import Course.ListTest (test_List)
 import Course.ListZipperTest (test_ListZipper)
 import Course.MonadTest (test_Monad)
 import Course.OptionalTest (test_Optional)
+import Course.ParserTest (test_Parser)
 import Course.StateTest (test_State)
 import Course.StateTTest (test_StateT)
 import Course.ValidationTest (test_Validation)
+import Course.TraversableTest (test_Traversable)
 
 main :: IO ()
 main = defaultMain tests
@@ -31,7 +34,9 @@ tests =
   , test_Validation
   , test_Extend
   , test_Comonad
+  , test_Traversable
   , test_ListZipper
+  , test_Parser
   , test_JsonParser
   , test_Cheque
   ]
