@@ -207,7 +207,7 @@ between openP closeP middle = do
 -- >>> isErrorResult (parse (betweenCharTok '[' ']' character) "abc]")
 -- True
 betweenCharTok :: Char -> Char -> Parser a -> Parser a
-betweenCharTok charOpen charClose = between (is charOpen) (is charClose)
+betweenCharTok charOpen charClose = between (charTok charOpen) (charTok charClose)
 
 -- | Write a function that parses 4 hex digits and return the character value.
 --

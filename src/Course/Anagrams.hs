@@ -5,8 +5,8 @@
 module Course.Anagrams where
 
 import Course.Core
-import Course.List
 import Course.Functor
+import Course.List
 
 {-
 
@@ -24,21 +24,15 @@ Functions that might help
 * on :: (b -> b -> c) -> (a -> b) -> a -> a -> c
 
 -}
-
-
 -- Return all anagrams of the given string
 -- that appear in the given dictionary file.
-anagrams ::
-  Chars
-  -> FilePath
-  -> IO (List Chars)
-anagrams =
-  error "todo: Course.Anagrams#anagrams"
+anagrams :: Chars -> FilePath -> IO (List Chars)
+anagrams text filename = go <$> readFile filename
+  where
+    go :: Chars -> List Chars
+    go fileContent =
+      intersectBy equalIgnoringCase (permutations text) (lines fileContent)
 
 -- Compare two strings for equality, ignoring case
-equalIgnoringCase ::
-  Chars
-  -> Chars
-  -> Bool
-equalIgnoringCase =
-  error "todo: Course.Anagrams#equalIgnoringCase"
+equalIgnoringCase :: Chars -> Chars -> Bool
+equalIgnoringCase = on (==) (map toUpper)

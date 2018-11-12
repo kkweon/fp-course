@@ -1,69 +1,55 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE OverloadedStrings #-}
-
+{-# LANGUAGE LambdaCase #-}
 module Course.Interactive where
 
+import Control.Exception (IOException, try)
+import Course.Applicative
 import Course.Core
 import Course.Functor
-import Course.Applicative
-import Course.Monad
-import Course.Traversable
 import Course.List
+import Course.Monad
 import Course.Optional
+import Course.Traversable
 
 -- | Eliminates any value over which a functor is defined.
-vooid ::
-  Functor m =>
-  m a
-  -> m ()
-vooid =
-  (<$>) (const ())
+vooid :: Functor m => m a -> m ()
+vooid = (<$>) (const ())
 
 -- | A version of @bind@ that ignores the result of the effect.
-(>-) ::
-  Monad m =>
-  m a
-  -> m b
-  -> m b
-(>-) a =
-  (>>=) a . const
+(>-) :: Monad m => m a -> m b -> m b
+(>-) a = (>>=) a . const
 
 -- | Runs an action until a result of that action satisfies a given predicate.
 untilM ::
-  Monad m =>
-  (a -> m Bool) -- ^ The predicate to satisfy to stop running the action.
+     Monad m
+  => (a -> m Bool) -- ^ The predicate to satisfy to stop running the action.
   -> m a -- ^ The action to run until the predicate satisfies.
   -> m a
 untilM p a =
   a >>= \r ->
-  p r >>= \q ->
-  if q
-    then
-      pure r
-    else
-      untilM p a
+    p r >>= \q ->
+      if q
+        then pure r
+        else untilM p a
 
 -- | Example program that uses IO to echo back characters that are entered by the user.
-echo ::
-  IO ()
+echo :: IO ()
 echo =
-  vooid (untilM
-          (\c ->
-            if c == 'q'
-              then
-                putStrLn "Bye!" >-
-                pure True
-              else
-                pure False)
-          (putStr "Enter a character: " >-
-           getChar >>= \c ->
-           putStrLn "" >-
-           putStrLn (c :. Nil) >-
-           pure c))
+  vooid
+    (untilM
+       (\c ->
+          if c == 'q'
+            then putStrLn "Bye!" >- pure True
+            else pure False)
+       (putStr "Enter a character: " >- getChar >>= \c ->
+          putStrLn "" >- putStrLn (c :. Nil) >- pure c))
 
 data Op =
-  Op Char Chars (IO ()) -- keyboard entry, description, program
+  Op Char
+     Chars
+     (IO ()) -- keyboard entry, description, program
 
 -- |
 --
@@ -80,10 +66,19 @@ data Op =
 -- /Tip:/ @putStr :: String -> IO ()@ -- Prints a string to standard output.
 --
 -- /Tip:/ @putStrLn :: String -> IO ()@ -- Prints a string and then a new line to standard output.
-convertInteractive ::
-  IO ()
-convertInteractive =
-  error "todo: Course.Interactive#convertInteractive"
+convertInteractive :: IO ()
+convertInteractive = do
+  putStrLn "Type 'q' to exit. Type any string to convert to upper case"
+  vooid
+    (untilM
+       (\string ->
+          if string == "Q" || string == "QUIT"
+            then putStrLn "Bye!" >- pure True
+            else putStrLn string >- pure False)
+       action)
+  where
+    action :: IO Chars
+    action = map toUpper <$> getLine
 
 -- |
 --
@@ -108,10 +103,25 @@ convertInteractive =
 -- /Tip:/ @putStr :: String -> IO ()@ -- Prints a string to standard output.
 --
 -- /Tip:/ @putStrLn :: String -> IO ()@ -- Prints a string and then a new line to standard output.
-reverseInteractive ::
-  IO ()
+reverseInteractive :: IO ()
 reverseInteractive =
-  error "todo: Course.Interactive#reverseInteractive"
+  vooid
+    (untilM
+       (\case
+          Left e -> putStrLn ("ERROR" ++ show' e) >- return False
+          Right _ -> pure True)
+       (try go :: IO (Either IOException ())))
+  where
+    go :: IO ()
+    go = do
+      putStrLn "Enter a filename to reverse the content"
+      filename <- getLine
+      filecontent <- readFile filename
+      putStrLn "Enter a filename to write the reversed content"
+      targetFilename <- getLine
+      writeFile targetFilename (reverseContent filecontent)
+    reverseContent :: Chars -> Chars
+    reverseContent = unlines . reverse . lines
 
 -- |
 --
@@ -134,38 +144,43 @@ reverseInteractive =
 -- /Tip:/ @putStr :: String -> IO ()@ -- Prints a string to standard output.
 --
 -- /Tip:/ @putStrLn :: String -> IO ()@ -- Prints a string and then a new line to standard output.
-encodeInteractive ::
-  IO ()
-encodeInteractive =
-  error "todo: Course.Interactive#encodeInteractive"
+encodeInteractive :: IO ()
+encodeInteractive = do
+  putStrLn "Enter a string to URL-ENCODE"
+  line <- getLine
+  let urlEncoded = flatMap urlEncode line
+  putStrLn $ "Result => " ++ urlEncoded
 
-interactive ::
-  IO ()
+  where
+    urlEncode :: Char -> Chars
+    urlEncode ' ' = "%20"
+    urlEncode '\t' = "%09"
+    urlEncode '"' = "%22"
+    urlEncode c = c :. Nil
+
+interactive :: IO ()
 interactive =
-  let ops = (
-               Op 'c' "Convert a string to upper-case" convertInteractive
-            :. Op 'r' "Reverse a file" reverseInteractive
-            :. Op 'e' "Encode a URL" encodeInteractive
-            :. Op 'q' "Quit" (pure ())
-            :. Nil
-            )
-  in vooid (untilM
-             (\c ->
-               if c == 'q'
-                 then
-                   putStrLn "Bye!" >-
-                   pure True
-                 else
-                   pure False)
-             (putStrLn "Select: " >-
-              traverse (\(Op c s _) ->
-                putStr (c :. Nil) >-
-                putStr ". " >-
-                putStrLn s) ops >-
-              getChar >>= \c ->
+  let ops =
+        (Op 'c' "Convert a string to upper-case" convertInteractive :.
+         Op 'r' "Reverse a file" reverseInteractive :.
+         Op 'e' "Encode a URL" encodeInteractive :.
+         Op 'q' "Quit" (pure ()) :.
+         Nil)
+   in vooid
+        (untilM
+           (\c ->
+              if c == 'q'
+                then putStrLn "Bye!" >- pure True
+                else pure False)
+           (putStrLn "Select: " >-
+            traverse
+              (\(Op c s _) -> putStr (c :. Nil) >- putStr ". " >- putStrLn s)
+              ops >-
+            getChar >>= \c ->
               putStrLn "" >-
               let o = find (\(Op c' _ _) -> c' == c) ops
-                  r = case o of
-                        Empty -> (putStrLn "Not a valid selection. Try again." >-)
-                        Full (Op _ _ k) -> (k >-)
-              in r (pure c)))
+                  r =
+                    case o of
+                      Empty -> (putStrLn "Not a valid selection. Try again." >-)
+                      Full (Op _ _ k) -> (k >-)
+               in r (pure c)))

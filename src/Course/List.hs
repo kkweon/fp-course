@@ -487,3 +487,7 @@ instance A.Applicative List where
 instance P.Monad List where
   (>>=) = flip flatMap
   return = (:. Nil)
+
+null :: List a -> Bool
+null Nil = True
+null _ = False
